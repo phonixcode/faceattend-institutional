@@ -4,7 +4,8 @@ Multi-role university attendance system with facial recognition.
 
 ## Prerequisites
 
-- Python 3.12
+- **Python 3.12 exactly** (3.13+ and 3.14 are NOT supported — TensorFlow and NumPy require ≤3.12)
+  - Download: https://www.python.org/downloads/release/python-3129/
 - Node.js 18+
 - npm
 
@@ -25,7 +26,9 @@ cd faceattend-institutional
 cd backend
 
 # Create virtual environment
-python3.12 -m venv venv
+# IMPORTANT: must use Python 3.12 — not 3.13 or 3.14
+python3.12 -m venv venv        # macOS/Linux
+# py -3.12 -m venv venv        # Windows (if using Python Launcher)
 
 # Activate — macOS/Linux:
 source venv/bin/activate
@@ -56,7 +59,11 @@ Open `.env` and set the following required values:
 Start the backend:
 
 ```bash
+# macOS/Linux
 uvicorn app.main:app --reload
+
+# Windows (use this form to avoid PATH issues)
+python -m uvicorn app.main:app --reload
 ```
 
 API runs at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
