@@ -31,10 +31,10 @@ python3.12 -m venv venv
 source venv/bin/activate
 
 # Activate — Windows (Command Prompt):
-# venv\Scripts\activate.bat
+venv\Scripts\activate.bat
 
 # Activate — Windows (PowerShell):
-# venv\Scripts\Activate.ps1
+venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
