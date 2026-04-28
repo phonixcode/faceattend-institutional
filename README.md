@@ -24,10 +24,17 @@ cd faceattend-institutional
 ```bash
 cd backend
 
-# Create and activate virtual environment
+# Create virtual environment
 python3.12 -m venv venv
-source venv/bin/activate        # macOS/Linux
-# venv\Scripts\activate         # Windows
+
+# Activate — macOS/Linux:
+source venv/bin/activate
+
+# Activate — Windows (Command Prompt):
+# venv\Scripts\activate.bat
+
+# Activate — Windows (PowerShell):
+# venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
