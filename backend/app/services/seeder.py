@@ -4,9 +4,9 @@ FaceAttend Institutional — Minimal Test Seeder
 INSTITUTION
   → Griffith College Limerick
       → School of Computing & Digital Technologies
-          → BSc Computer Science (Yr 1–4, modules tagged by year)
+          → BSc Computer Science (Year 1 modules)
       → School of Engineering
-          → BEng Electronic Engineering (Yr 1–2)
+          → BEng Electronic Engineering (Year 1 modules)
 
 STAFF
   admin@faceattend.ie        Admin@1234      → System Admin
@@ -20,10 +20,9 @@ MODULES (year_of_study tagged for auto-enroll)
   EE401  Embedded Systems          BEng EE Year 1
   EE402  Signal Processing         BEng EE Year 2
 
-STUDENTS (2 per cohort × 2 intakes × 2 programmes = 8 students)
-  2026 intake → CS: STU20260001, STU20260002   EE: STU20260003, STU20260004
-  2027 intake → CS: STU20270001, STU20270002   EE: STU20270003, STU20270004
-
+STUDENTS (2 per programme, 2026 intake only = 4 students)
+  2026 CS: STU20260001, STU20260002
+  2026 EE: STU20260003, STU20260004
   password = student number  (e.g. STU20260001)
 
 LECTURES: 2 past lectures per module
@@ -148,29 +147,16 @@ def _seed_all(db: Session):
             is_active       = True,
         )
 
-    # 2026 intake
-    students_2026_cs = [
+    # 2026 intake only
+    all_cs_students = [
         make_student("STU20260001", "Oisín Fitzgerald",  "stu20260001@uti.ie", prog_cs.id, 1, 2026),
         make_student("STU20260002", "Caoimhe Doherty",   "stu20260002@uti.ie", prog_cs.id, 1, 2026),
     ]
-    students_2026_ee = [
+    all_ee_students = [
         make_student("STU20260003", "Darragh Connolly",  "stu20260003@uti.ie", prog_ee.id, 1, 2026),
         make_student("STU20260004", "Mairéad Burke",     "stu20260004@uti.ie", prog_ee.id, 1, 2026),
     ]
-
-    # 2027 intake
-    students_2027_cs = [
-        make_student("STU20270001", "Rían O'Brien",      "stu20270001@uti.ie", prog_cs.id, 1, 2027),
-        make_student("STU20270002", "Saoirse McCarthy",  "stu20270002@uti.ie", prog_cs.id, 1, 2027),
-    ]
-    students_2027_ee = [
-        make_student("STU20270003", "Seán Higgins",      "stu20270003@uti.ie", prog_ee.id, 1, 2027),
-        make_student("STU20270004", "Ciara Walsh",       "stu20270004@uti.ie", prog_ee.id, 1, 2027),
-    ]
-
-    all_cs_students = students_2026_cs + students_2027_cs
-    all_ee_students = students_2026_ee + students_2027_ee
-    all_students    = all_cs_students + all_ee_students
+    all_students = all_cs_students + all_ee_students
     db.add_all(all_students)
     db.flush()
 
@@ -237,7 +223,7 @@ def _seed_all(db: Session):
     print(f"  Programmes  : 2  (BSc CS · BEng EE)")
     print(f"  Modules     : {len(all_modules)}  (CS401, CS402, EE401, EE402)")
     print(f"  Lectures    : {len(all_lectures)}  (2 per module, past dates)")
-    print(f"  Students    : {len(all_students)}  (4×2026 · 4×2027)")
+    print(f"  Students    : {len(all_students)}  (2 CS · 2 EE — 2026 intake)")
     print(f"  Enrolments  : {len(enrolments)}")
     print()
     print("  STAFF (password: Staff@1234)")
@@ -250,7 +236,5 @@ def _seed_all(db: Session):
     print("  ─────────────────────────────────────────")
     print("  2026 CS: stu20260001@uti.ie  stu20260002@uti.ie")
     print("  2026 EE: stu20260003@uti.ie  stu20260004@uti.ie")
-    print("  2027 CS: stu20270001@uti.ie  stu20270002@uti.ie")
-    print("  2027 EE: stu20270003@uti.ie  stu20270004@uti.ie")
     print("  e.g. email: stu20260001@uti.ie  pw: STU20260001")
     print("=" * 56)

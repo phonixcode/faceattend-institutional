@@ -8,14 +8,13 @@ import { adminApi } from '../../services/api'
 import { Page, Card, Button, Input, Select, Modal, Badge, Empty, Spinner, Table, Pagination } from '../../components/ui'
 import toast from 'react-hot-toast'
 
-const PAGE_SIZE    = 10
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS        = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR + 1 - i)
+const PAGE_SIZE = 10
+const YEARS     = [2027, 2026]
 
 const emptyForm = () => ({
   student_number: '', full_name: '', email: '',
   password: '', programme_id: '', year_of_study: 1,
-  admission_year: new Date().getFullYear(),
+  admission_year: 2026,
 })
 
 export default function AdminStudents() {

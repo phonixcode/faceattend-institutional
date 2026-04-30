@@ -8,20 +8,19 @@ import { adminApi } from '../../services/api'
 import { Page, Card, Button, Badge, Empty, Spinner, Input, Select, Modal } from '../../components/ui'
 import toast from 'react-hot-toast'
 
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS        = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR + 1 - i)
+const YEARS = [2027, 2026]
 
 const emptyForm = {
   student_number: '', full_name: '', email: '',
   password: '', programme_id: '', year_of_study: 1,
-  admission_year: CURRENT_YEAR,
+  admission_year: 2026,
 }
 
 export default function AdminAdmissions() {
   const [cohorts, setCohorts]   = useState([])
   const [progs, setProgs]       = useState([])
   const [loading, setLoading]   = useState(true)
-  const [yearFilter, setYearFilter] = useState(CURRENT_YEAR)
+  const [yearFilter, setYearFilter] = useState(2026)
   const [activeCohort, setActiveCohort] = useState(null)   // { programme_id, admission_year }
   const [cohortStudents, setCohortStudents] = useState([])
   const [loadingStudents, setLoadingStudents] = useState(false)
