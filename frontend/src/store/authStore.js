@@ -12,6 +12,12 @@ const useAuthStore = create((set) => ({
     set({ token, refreshToken, user })
   },
 
+  updateUser: (partial) => set((state) => {
+    const updated = { ...state.user, ...partial }
+    sessionStorage.setItem('user', JSON.stringify(updated))
+    return { user: updated }
+  }),
+
   clearAuth: () => {
     sessionStorage.clear()
     set({ token: null, refreshToken: null, user: null })

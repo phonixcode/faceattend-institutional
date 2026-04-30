@@ -2,8 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   LayoutDashboard, Users, BookOpen, GraduationCap,
-  Building2, BarChart3, LogOut, Settings, ChevronLeft,
-  Scan, Clock, FileText
+  Building2, BarChart3, LogOut, Settings,
+  Scan, Clock, FileText, UserCheck
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
@@ -15,6 +15,7 @@ const NAV = {
     { label: 'Departments',  icon: Building2,       to: '/admin/departments' },
     { label: 'Programmes',   icon: GraduationCap,   to: '/admin/programmes' },
     { label: 'Modules',      icon: BookOpen,        to: '/admin/modules' },
+    { label: 'Admissions',   icon: UserCheck,       to: '/admin/admissions' },
     { label: 'Students',     icon: Users,           to: '/admin/students' },
     { label: 'Reports',      icon: BarChart3,       to: '/admin/reports' },
   ],
@@ -22,7 +23,6 @@ const NAV = {
     { label: 'Dashboard',    icon: LayoutDashboard, to: '/lecturer/dashboard' },
     { label: 'Modules',      icon: BookOpen,        to: '/lecturer/modules' },
     { label: 'Students',     icon: Users,           to: '/lecturer/students' },
-    { label: 'Approvals',    icon: Clock,           to: '/lecturer/approvals' },
     { label: 'Reports',      icon: BarChart3,       to: '/lecturer/reports' },
   ],
   PROGRAMME_DIRECTOR: [
@@ -32,6 +32,7 @@ const NAV = {
   ],
   STUDENT: [
     { label: 'Dashboard',    icon: LayoutDashboard, to: '/student/dashboard' },
+    { label: 'My Modules',   icon: BookOpen,        to: '/student/modules' },
     { label: 'My Attendance',icon: FileText,        to: '/student/attendance' },
     { label: 'Register Face',icon: Scan,            to: '/student/register-face' },
   ],
@@ -85,6 +86,16 @@ export default function Sidebar() {
 
       {/* User footer */}
       <div className="px-3 py-4 border-t border-gray-100 space-y-0.5">
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => clsx(
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+            isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+          )}
+        >
+          <Settings size={16} />
+          Profile Settings
+        </NavLink>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-150"

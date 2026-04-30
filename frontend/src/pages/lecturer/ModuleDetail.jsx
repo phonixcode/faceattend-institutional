@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Users, Calendar, BarChart3, Plus, Scan,
-  Upload, UserPlus, Link, ChevronRight, Trash2
+  Upload, UserPlus, ChevronRight, Trash2
 } from 'lucide-react'
 import { lecturerApi } from '../../services/api'
 import { Page, Card, Button, Input, Select, Modal, Badge, Table, Empty, Spinner } from '../../components/ui'
@@ -132,14 +132,9 @@ export default function LecturerModuleDetail() {
       title={module?.module_name}
       subtitle={`${module?.module_code} · Semester ${module?.semester}`}
       actions={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={copyRegLink}>
-            <Link size={13} /> Share Registration Link
-          </Button>
-          <Button size="sm" onClick={() => navigate(`/lecturer/reports?module=${id}`)}>
-            <BarChart3 size={13} /> Reports
-          </Button>
-        </div>
+        <Button size="sm" onClick={() => navigate(`/lecturer/reports?module=${id}`)}>
+          <BarChart3 size={13} /> Reports
+        </Button>
       }
     >
       {/* Tabs */}
@@ -162,14 +157,9 @@ export default function LecturerModuleDetail() {
         <Card padding={false}>
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <p className="text-sm font-bold text-gray-700">{students.length} students enrolled</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={copyRegLink}>
-                <Link size={13} /> Self-Register Link
-              </Button>
-              <Button size="sm" onClick={() => setAddStudent(true)}>
-                <UserPlus size={13} /> Add Student
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => setAddStudent(true)}>
+              <UserPlus size={13} /> Add Student
+            </Button>
           </div>
           {students.length === 0
             ? <Empty icon={<Users size={20} />} title="No students enrolled yet" />

@@ -1,13 +1,12 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import Webcam from 'react-webcam'
-import { Camera, CheckCircle, RefreshCw, Upload, Info } from 'lucide-react'
-import { lecturerApi } from '../../services/api'
+import { Camera, CheckCircle, RefreshCw, Upload, Info, ShieldCheck } from 'lucide-react'
+import { studentApi, authApi } from '../../services/api'
 import { Page, Card, Button, Spinner } from '../../components/ui'
-import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 
-const CAPTURE_COUNT  = 5
-const INSTRUCTIONS   = [
+const CAPTURE_COUNT = 5
+const INSTRUCTIONS  = [
   'Look straight at the camera',
   'Turn slightly left',
   'Turn slightly right',
@@ -16,22 +15,33 @@ const INSTRUCTIONS   = [
 ]
 
 export default function StudentRegisterFace() {
-  const webcamRef             = useRef(null)
-  const { user }              = useAuthStore()
-  const [captures, setCaptures] = useState([])  // array of base64 strings
+  const webcamRef               = useRef(null)
+  const [captures, setCaptures] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [done, setDone]       = useState(false)
-  const [cameras, setCameras] = useState([])
+  const [done, setDone]         = useState(false)
+  const [cameras, setCameras]   = useState([])
   const [selectedCamera, setSelectedCamera] = useState('')
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(true)
 
-  // Enumerate cameras on mount
-  useState(() => {
+  // Check if face already registered
+  useEffect(() => {
+    authApi.meStudent()
+      .then(r => {
+        if (r.data?.face_registered) setAlreadyRegistered(true)
+      })
+      .catch(() => {})
+      .finally(() => setCheckingStatus(false))
+  }, [])
+
+  // Enumerate cameras
+  useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then(devices => {
       const cams = devices.filter(d => d.kind === 'videoinput')
       setCameras(cams)
       if (cams.length > 0) setSelectedCamera(cams[0].deviceId)
-    })
-  })
+    }).catch(() => {})
+  }, [])
 
   const capture = useCallback(() => {
     if (!webcamRef.current) return
@@ -43,6 +53,12 @@ export default function StudentRegisterFace() {
 
   const reset = () => { setCaptures([]); setDone(false) }
 
+  const startReRegister = () => {
+    setAlreadyRegistered(false)
+    setCaptures([])
+    setDone(false)
+  }
+
   const handleSubmit = async () => {
     if (captures.length < CAPTURE_COUNT) {
       toast.error(`Please capture ${CAPTURE_COUNT} photos`)
@@ -51,20 +67,16 @@ export default function StudentRegisterFace() {
     setUploading(true)
     try {
       const formData = new FormData()
-      formData.append('student_id', user.id)
-
-      // Convert base64 to blobs
       captures.forEach((b64, i) => {
         const byteStr = atob(b64.split(',')[1])
         const arr     = new Uint8Array(byteStr.length)
         for (let j = 0; j < byteStr.length; j++) arr[j] = byteStr.charCodeAt(j)
-        const blob    = new Blob([arr], { type: 'image/jpeg' })
-        formData.append('images', blob, `face_${i}.jpg`)
+        formData.append('images', new Blob([arr], { type: 'image/jpeg' }), `face_${i}.jpg`)
       })
-
-      await lecturerApi.registerFace(formData)
+      await studentApi.registerFace(formData)
       toast.success('Face registered successfully!')
       setDone(true)
+      setAlreadyRegistered(true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Registration failed')
     } finally {
@@ -72,6 +84,40 @@ export default function StudentRegisterFace() {
     }
   }
 
+  if (checkingStatus) {
+    return (
+      <Page title="Face Registration">
+        <div className="flex justify-center py-20">
+          <Spinner size={20} className="text-gray-300" />
+        </div>
+      </Page>
+    )
+  }
+
+  // Already registered — show confirmation screen
+  if (alreadyRegistered && !done) {
+    return (
+      <Page title="Face Registration">
+        <div className="max-w-md mx-auto">
+          <Card className="text-center py-12">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck size={28} className="text-emerald-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Face Already Registered</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Your face is registered and ready for attendance scans.
+              You don't need to do anything unless you want to update it.
+            </p>
+            <Button variant="secondary" onClick={startReRegister}>
+              <RefreshCw size={14} /> Update Face Data
+            </Button>
+          </Card>
+        </div>
+      </Page>
+    )
+  }
+
+  // Success screen after re-registration
   if (done) {
     return (
       <Page title="Face Registration">
@@ -103,7 +149,7 @@ export default function StudentRegisterFace() {
     >
       <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* Progress indicator */}
+        {/* Progress */}
         <div className="flex items-center gap-2">
           {Array.from({ length: CAPTURE_COUNT }).map((_, i) => (
             <div
@@ -118,7 +164,7 @@ export default function StudentRegisterFace() {
           </span>
         </div>
 
-        {/* Current instruction */}
+        {/* Instruction */}
         {step < CAPTURE_COUNT && (
           <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
             <Info size={16} className="text-blue-500 flex-shrink-0" />
@@ -155,7 +201,7 @@ export default function StudentRegisterFace() {
           />
         </Card>
 
-        {/* Captured thumbnails */}
+        {/* Thumbnails */}
         {captures.length > 0 && (
           <div className="flex gap-2">
             {captures.map((img, i) => (
@@ -170,7 +216,6 @@ export default function StudentRegisterFace() {
                 </div>
               </div>
             ))}
-            {/* Empty slots */}
             {Array.from({ length: CAPTURE_COUNT - captures.length }).map((_, i) => (
               <div
                 key={`empty-${i}`}
@@ -195,12 +240,7 @@ export default function StudentRegisterFace() {
               {step === 0 ? 'Take First Photo' : `Take Photo ${step + 1}`}
             </Button>
           ) : (
-            <Button
-              className="flex-1 btn-lg"
-              variant="success"
-              onClick={handleSubmit}
-              loading={uploading}
-            >
+            <Button className="flex-1 btn-lg" variant="success" onClick={handleSubmit} loading={uploading}>
               <Upload size={18} />
               {uploading ? 'Registering...' : 'Submit & Register Face'}
             </Button>

@@ -41,6 +41,8 @@ export const authApi = {
   verify2fa      : (user_id, code, is_student = false) => api.post('/auth/verify-2fa', { user_id, code, is_student }),
   me             : ()                  => api.get('/auth/me'),
   meStudent      : ()                  => api.get('/auth/me/student'),
+  updateProfile  : (data)              => api.patch('/auth/profile', data),
+  updateProfileStudent: (data)         => api.patch('/auth/profile/student', data),
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────
@@ -56,11 +58,15 @@ export const adminApi = {
   createDepartment: (data)             => api.post('/admin/departments', data),
   programmes     : (params = {})       => api.get('/admin/programmes', { params: { page: 1, page_size: 20, ...params } }),
   createProgramme : (data)             => api.post('/admin/programmes', data),
+  updateProgramme : (id, data)         => api.patch(`/admin/programmes/${id}`, data),
   modules        : (params = {})       => api.get('/admin/modules', { params: { page: 1, page_size: 20, ...params } }),
   createModule   : (data)              => api.post('/admin/modules', data),
   updateModule   : (id, data)          => api.patch(`/admin/modules/${id}`, data),
   students       : (params = {})       => api.get('/admin/students', { params: { page: 1, page_size: 20, ...params } }),
   createStudent  : (data)              => api.post('/admin/students', data),
+  updateStudent  : (id, data)          => api.patch(`/admin/students/${id}`, data),
+  toggleStudent  : (id)                => api.post(`/admin/students/${id}/toggle-active`),
+  admissionCohorts: ()                 => api.get('/admin/admissions/cohorts'),
   reports        : ()                  => api.get('/admin/reports'),
 }
 
@@ -103,6 +109,8 @@ export const studentApi = {
   dashboard      : ()                  => api.get('/student/dashboard'),
   attendance     : ()                  => api.get('/student/attendance'),
   moduleAttendance: (moduleId)         => api.get(`/student/attendance/${moduleId}`),
+  modules        : ()                  => api.get('/student/modules'),
+  registerFace   : (formData)          => api.post('/student/register-face', formData),
 }
 
 // ── Director ──────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import AdminDepartments from './pages/admin/Departments'
 import AdminProgrammes from './pages/admin/Programmes'
 import AdminModules    from './pages/admin/Modules'
 import AdminStudents   from './pages/admin/Students'
+import AdminAdmissions from './pages/admin/Admissions'
 import AdminReports    from './pages/admin/Reports'
 
 // Lecturer
@@ -32,11 +33,14 @@ import DirectorReports   from './pages/director/Reports'
 // Student
 import StudentDashboard  from './pages/student/Dashboard'
 import StudentAttendance from './pages/student/Attendance'
+import StudentModules    from './pages/student/Modules'
 import StudentRegisterFace from './pages/student/RegisterFace'
 
 // Public
-import PublicRegister from './pages/public/Register'
-import Kiosk          from './pages/kiosk/Kiosk'
+import Kiosk from './pages/kiosk/Kiosk'
+
+// Shared
+import Profile from './pages/Profile'
 
 const ADMIN    = ['SYSTEM_ADMIN']
 const LECTURER = ['SYSTEM_ADMIN', 'LECTURER']
@@ -63,9 +67,8 @@ export default function App() {
 
       <Routes>
         {/* Public */}
-        <Route path="/login"                    element={<Login />} />
-        <Route path="/public/register/:moduleId" element={<PublicRegister />} />
-        <Route path="/kiosk/:lectureId"          element={<Kiosk />} />
+        <Route path="/login"           element={<Login />} />
+        <Route path="/kiosk/:lectureId" element={<Kiosk />} />
         <Route path="/"                          element={<RequireAuth><RoleRedirect /></RequireAuth>} />
 
         {/* Protected — with sidebar layout */}
@@ -77,6 +80,7 @@ export default function App() {
           <Route path="/admin/departments"  element={<RoleGuard roles={ADMIN}><AdminDepartments /></RoleGuard>} />
           <Route path="/admin/programmes"   element={<RoleGuard roles={ADMIN}><AdminProgrammes /></RoleGuard>} />
           <Route path="/admin/modules"      element={<RoleGuard roles={ADMIN}><AdminModules /></RoleGuard>} />
+          <Route path="/admin/admissions"   element={<RoleGuard roles={ADMIN}><AdminAdmissions /></RoleGuard>} />
           <Route path="/admin/students"     element={<RoleGuard roles={ADMIN}><AdminStudents /></RoleGuard>} />
           <Route path="/admin/reports"      element={<RoleGuard roles={ADMIN}><AdminReports /></RoleGuard>} />
 
@@ -96,8 +100,12 @@ export default function App() {
 
           {/* Student */}
           <Route path="/student/dashboard"     element={<RoleGuard roles={STUDENT}><StudentDashboard /></RoleGuard>} />
+          <Route path="/student/modules"       element={<RoleGuard roles={STUDENT}><StudentModules /></RoleGuard>} />
           <Route path="/student/attendance"    element={<RoleGuard roles={STUDENT}><StudentAttendance /></RoleGuard>} />
           <Route path="/student/register-face" element={<RoleGuard roles={STUDENT}><StudentRegisterFace /></RoleGuard>} />
+
+          {/* Shared — all authenticated users */}
+          <Route path="/profile" element={<Profile />} />
 
         </Route>
 
