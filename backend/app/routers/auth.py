@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 from app.database import get_db
 from app.models.user import User, Student
 from app.core.security import (
-    verify_password, create_access_token, create_refresh_token,
+    verify_password, hash_password, create_access_token, create_refresh_token,
     decode_token, generate_totp_secret, generate_qr_code, verify_totp
 )
 from app.core.dependencies import get_current_user, get_current_student
@@ -189,6 +191,56 @@ def get_me_student(current_student: Student = Depends(get_current_student)):
         "student_number": current_student.student_number,
         "role"          : "STUDENT",
         "face_registered": current_student.face_registered,
+    }
+
+
+# ── Profile update ────────────────────────────────────────────────────────
+
+class ProfileUpdate(BaseModel):
+    full_name       : Optional[str] = None
+    current_password: Optional[str] = None
+    new_password    : Optional[str] = None
+
+
+@router.patch("/profile")
+def update_profile(
+    body           : ProfileUpdate,
+    db             : Session = Depends(get_db),
+    current_user   : User    = Depends(get_current_user),
+):
+    """Update staff user's name and/or password."""
+    return _apply_profile_update(current_user, body, db)
+
+
+@router.patch("/profile/student")
+def update_profile_student(
+    body            : ProfileUpdate,
+    db              : Session = Depends(get_db),
+    current_student : Student = Depends(get_current_student),
+):
+    """Update student's name and/or password."""
+    return _apply_profile_update(current_student, body, db)
+
+
+def _apply_profile_update(entity, body: ProfileUpdate, db: Session):
+    if body.full_name:
+        entity.full_name = body.full_name.strip()
+
+    if body.new_password:
+        if not body.current_password:
+            raise HTTPException(status_code=400, detail="Current password is required to set a new password")
+        if not verify_password(body.current_password, entity.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        if len(body.new_password) < 8:
+            raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+        entity.password_hash = hash_password(body.new_password)
+
+    db.commit()
+    db.refresh(entity)
+    return {
+        "id"       : entity.id,
+        "full_name": entity.full_name,
+        "email"    : entity.email,
     }
 
 

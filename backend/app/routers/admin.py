@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.dependencies import require_admin
@@ -11,9 +11,10 @@ from app.schemas.academic import (
     ProgrammeCreate, ProgrammeResponse,
     ModuleCreate, ModuleUpdate, ModuleResponse,
     UserCreate, UserUpdate, UserResponse,
-    StudentCreate, StudentResponse,
+    StudentCreate, StudentUpdate, StudentResponse,
     PaginatedResponse,
 )
+from app.services.email_service import send_welcome_credentials
 import uuid
 
 PAGE_SIZE_DEFAULT = 20
@@ -71,6 +72,7 @@ def list_users(
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     body : UserCreate,
+    bg   : BackgroundTasks,
     db   : Session = Depends(get_db),
     _user: User    = Depends(require_admin),
 ):
@@ -88,6 +90,7 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    bg.add_task(send_welcome_credentials, body.email, body.full_name, body.email, body.password, body.role.value if hasattr(body.role, 'value') else str(body.role))
     return user
 
 
@@ -134,13 +137,20 @@ def deactivate_user(
 
 @router.get("/students", response_model=PaginatedResponse[StudentResponse])
 def list_students(
-    page     : int = 1,
-    page_size: int = PAGE_SIZE_DEFAULT,
-    db       : Session = Depends(get_db),
-    _user    : User    = Depends(require_admin),
+    page          : int       = 1,
+    page_size     : int       = PAGE_SIZE_DEFAULT,
+    admission_year: int | None= None,
+    programme_id  : str | None= None,
+    db            : Session   = Depends(get_db),
+    _user         : User      = Depends(require_admin),
 ):
     page_size = min(max(1, page_size), PAGE_SIZE_MAX)
-    q = db.query(Student).order_by(Student.created_at.desc())
+    q = db.query(Student)
+    if admission_year:
+        q = q.filter(Student.admission_year == admission_year)
+    if programme_id:
+        q = q.filter(Student.programme_id == programme_id)
+    q = q.order_by(Student.created_at.desc())
     total = q.count()
     items = q.offset((page - 1) * page_size).limit(page_size).all()
     return PaginatedResponse(items=items, total=total, page=page, page_size=page_size)
@@ -149,6 +159,7 @@ def list_students(
 @router.post("/students", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
 def create_student(
     body : StudentCreate,
+    bg   : BackgroundTasks,
     db   : Session = Depends(get_db),
     _user: User    = Depends(require_admin),
 ):
@@ -165,27 +176,101 @@ def create_student(
         password_hash = hash_password(body.password),
         programme_id  = body.programme_id,
         year_of_study = body.year_of_study,
+        admission_year= body.admission_year,
     )
     db.add(student)
+    db.flush()
+
+    # Auto-enrol in all active modules matching this programme + year
+    if student.programme_id and student.year_of_study:
+        modules = db.query(Module).filter(
+            Module.programme_id  == student.programme_id,
+            Module.year_of_study == student.year_of_study,
+            Module.is_active     == True,
+        ).all()
+        for module in modules:
+            existing = db.query(ModuleEnrollment).filter(
+                ModuleEnrollment.module_id  == module.id,
+                ModuleEnrollment.student_id == student.id,
+            ).first()
+            if not existing:
+                db.add(ModuleEnrollment(
+                    id        = str(uuid.uuid4()),
+                    module_id = module.id,
+                    student_id= student.id,
+                ))
+
     db.commit()
     db.refresh(student)
+    bg.add_task(send_welcome_credentials, body.email, body.full_name, body.email, body.password, "STUDENT")
     return student
 
 
 @router.patch("/students/{student_id}", response_model=StudentResponse)
 def update_student(
     student_id: str,
-    body      : UserUpdate,
+    body      : StudentUpdate,
     db        : Session = Depends(get_db),
     _user     : User    = Depends(require_admin),
 ):
     student = _get_or_404(db, Student, student_id)
     for field, value in body.model_dump(exclude_none=True).items():
-        if hasattr(student, field):
-            setattr(student, field, value)
+        setattr(student, field, value)
     db.commit()
     db.refresh(student)
     return student
+
+
+@router.post("/students/{student_id}/toggle-active", response_model=StudentResponse)
+def toggle_student_active(
+    student_id: str,
+    db        : Session = Depends(get_db),
+    _user     : User    = Depends(require_admin),
+):
+    student = _get_or_404(db, Student, student_id)
+    student.is_active = not student.is_active
+    db.commit()
+    db.refresh(student)
+    return student
+
+
+# ═══════════════════════════════════════════
+#  ADMISSIONS — COHORT OVERVIEW
+# ═══════════════════════════════════════════
+
+@router.get("/admissions/cohorts")
+def list_admission_cohorts(
+    db   : Session = Depends(get_db),
+    _user: User    = Depends(require_admin),
+):
+    """Group students by (programme, admission_year) to give a cohort overview."""
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            Student.programme_id,
+            Student.admission_year,
+            func.count(Student.id).label("student_count"),
+        )
+        .group_by(Student.programme_id, Student.admission_year)
+        .all()
+    )
+
+    result = []
+    for r in rows:
+        prog = db.query(Programme).filter(Programme.id == r.programme_id).first() if r.programme_id else None
+        module_count = db.query(Module).filter(
+            Module.programme_id == r.programme_id,
+            Module.is_active    == True,
+        ).count() if r.programme_id else 0
+        result.append({
+            "programme_id"  : r.programme_id,
+            "programme_name": prog.name if prog else "No Programme",
+            "admission_year": r.admission_year,
+            "student_count" : r.student_count,
+            "module_count"  : module_count,
+        })
+
+    return sorted(result, key=lambda x: (-x["admission_year"], x["programme_name"]))
 
 
 @router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)

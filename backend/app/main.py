@@ -39,6 +39,7 @@ app.include_router(public.router,   prefix="/public",   tags=["Public"])
 def on_startup():
     from app.database import SessionLocal
     from app.services.seeder import seed_default_admin
+
     db = SessionLocal()
     try:
         seed_default_admin(db)

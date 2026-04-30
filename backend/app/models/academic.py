@@ -50,6 +50,7 @@ class Module(Base):
     module_name   : Mapped[str]      = mapped_column(String, nullable=False)
     programme_id  : Mapped[str]      = mapped_column(ForeignKey("programmes.id"), nullable=False)
     lecturer_id   : Mapped[str]      = mapped_column(String, nullable=False)  # FK to users
+    year_of_study : Mapped[int]      = mapped_column(Integer, default=1)
     academic_year : Mapped[str]      = mapped_column(String, default="2024/2025")
     semester      : Mapped[str]      = mapped_column(String, default="1")
     is_active     : Mapped[bool]     = mapped_column(Boolean, default=True)

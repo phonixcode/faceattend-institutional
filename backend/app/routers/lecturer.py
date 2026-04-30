@@ -7,7 +7,7 @@ import json
 import uuid
 import shutil
 from datetime import datetime, date, time, timedelta
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.dependencies import require_lecturer
@@ -25,6 +25,7 @@ from app.services.registration import (
     register_face_images, enrol_students_in_module, bulk_import_students
 )
 from app.core.security import hash_password
+from app.services.email_service import send_welcome_credentials
 
 router = APIRouter()
 
@@ -227,6 +228,7 @@ async def bulk_import(
 @router.post("/students", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
 def create_student(
     body        : StudentCreate,
+    bg          : BackgroundTasks,
     current_user: User    = Depends(require_lecturer),
     db          : Session = Depends(get_db),
 ):
@@ -247,6 +249,7 @@ def create_student(
     db.add(student)
     db.commit()
     db.refresh(student)
+    bg.add_task(send_welcome_credentials, body.email, body.full_name, body.email, body.password, "STUDENT")
     return student
 
 

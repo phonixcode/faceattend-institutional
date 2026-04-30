@@ -14,8 +14,11 @@ class Settings(BaseSettings):
     model_name                  : str   = "Facenet"
     detector_backend            : str   = "opencv"
 
-    email_sender                : str   = ""
-    email_password              : str   = ""
+    smtp_host                   : str   = "sandbox.smtp.mailtrap.io"
+    smtp_port                   : int   = 587
+    smtp_user                   : str   = ""
+    smtp_password               : str   = ""
+    email_from                  : str   = "noreply@faceattend.ie"
     email_enabled               : bool  = False
 
     frontend_url                : str   = "http://localhost:5173"

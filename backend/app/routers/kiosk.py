@@ -403,9 +403,11 @@ def module_attendance_report(
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
 
+    from datetime import date as _date
     lectures = db.query(ScheduledLecture).filter(
         ScheduledLecture.module_id    == module_id,
         ScheduledLecture.is_cancelled == False,
+        ScheduledLecture.date         <= _date.today(),
     ).all()
 
     enrolled = db.query(ModuleEnrollment).filter(

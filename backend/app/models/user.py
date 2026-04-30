@@ -44,6 +44,7 @@ class Student(Base):
     year_of_study  : Mapped[int]      = mapped_column(default=1)
     totp_secret    : Mapped[str|None] = mapped_column(String, nullable=True)
     totp_enabled   : Mapped[bool]     = mapped_column(Boolean, default=False)
+    admission_year : Mapped[int]      = mapped_column(default=2024)
     is_active      : Mapped[bool]     = mapped_column(Boolean, default=True)
     face_registered: Mapped[bool]     = mapped_column(Boolean, default=False)
     created_at     : Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

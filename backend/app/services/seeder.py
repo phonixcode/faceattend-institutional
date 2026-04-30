@@ -1,63 +1,36 @@
 """
-FaceAttend Institutional — Full Data Seeder
-============================================
-Creates a complete realistic dataset for testing:
-
+FaceAttend Institutional — Minimal Test Seeder
+===============================================
 INSTITUTION
-  → University of Technological Ireland (UTI)
+  → Griffith College Limerick
       → School of Computing & Digital Technologies
-          → BSc Computer Science (Yr 1–4)
-          → MSc Artificial Intelligence (Yr 1–2)
+          → BSc Computer Science (Yr 1–4, modules tagged by year)
       → School of Engineering
-          → BEng Electronic Engineering (Yr 1–4)
+          → BEng Electronic Engineering (Yr 1–2)
 
-STAFF  (all passwords: Staff@1234, 2FA not yet set up)
-  → 1 System Admin        admin@faceattend.ie      / Admin@1234
-  → 1 Programme Director  director@uti.ie
-  → 4 Lecturers           lecturer1–4@uti.ie
+STAFF
+  admin@faceattend.ie        Admin@1234      → System Admin
+  director@uti.ie            Staff@1234      → Programme Director
+  lecturer1@uti.ie           Staff@1234      → Lecturer (CS modules)
+  lecturer2@uti.ie           Staff@1234      → Lecturer (EE modules)
 
-MODULES  (8 modules across 2 programmes)
-  CS modules → lecturer1 / lecturer2
-  AI modules → lecturer2 / lecturer3
-  EE modules → lecturer4
+MODULES (year_of_study tagged for auto-enroll)
+  CS401  Algorithms & DS           BSc CS  Year 1
+  CS402  Machine Learning          BSc CS  Year 2
+  EE401  Embedded Systems          BEng EE Year 1
+  EE402  Signal Processing         BEng EE Year 2
 
-STUDENTS (20 students across programmes — passwords = student number)
-  10 × BSc CS  (cs_students)
-   5 × MSc AI  (ai_students)
-   5 × BEng EE (ee_students)
+STUDENTS (2 per cohort × 2 intakes × 2 programmes = 8 students)
+  2026 intake → CS: STU20260001, STU20260002   EE: STU20260003, STU20260004
+  2027 intake → CS: STU20270001, STU20270002   EE: STU20270003, STU20270004
 
-ENROLMENTS
-  Every student enrolled in all modules of their programme
+  password = student number  (e.g. STU20260001)
 
-LECTURES
-  3 lectures per module (past dates so grading can be tested)
-
-HOW TO USE
-----------
-Replace backend/app/services/seeder.py with this file, then:
-
-  uvicorn app.main:app --reload
-
-The seeder runs automatically on startup via on_startup() in main.py.
-To force a re-seed, delete faceattend.db and restart.
-
-LOGIN CREDENTIALS
------------------
-admin@faceattend.ie          Admin@1234      → System Admin
-director@uti.ie              Staff@1234      → Programme Director (BSc CS)
-lecturer1@uti.ie             Staff@1234      → Lecturer (CS modules)
-lecturer2@uti.ie             Staff@1234      → Lecturer (CS + AI modules)
-lecturer3@uti.ie             Staff@1234      → Lecturer (AI modules)
-lecturer4@uti.ie             Staff@1234      → Lecturer (EE modules)
-
-Students (password = student number, e.g. STU20240001):
-  stu20240001@uti.ie … stu20240020@uti.ie
-
-Note: First login triggers 2FA setup via Google Authenticator.
+LECTURES: 2 past lectures per module
 """
 
 import uuid
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
@@ -69,59 +42,18 @@ from app.models.academic   import (
 from app.models.attendance import ScheduledLecture
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _lecture_dt(d: date, t: time) -> datetime:
-    return datetime.combine(d, t)
-
-
-def _scan_windows(start: datetime, end: datetime):
-    """
-    Auto-calculate three scan windows from lecture start/end.
-    Scan 1: start → start+15min
-    Scan 2: midpoint ±10min
-    Scan 3: end-15min → end
-    """
-    duration = end - start
-    midpoint = start + duration / 2
-    return {
-        "scan1_opens_at"  : start,
-        "scan1_closes_at" : start + timedelta(minutes=15),
-        "scan2_opens_at"  : midpoint - timedelta(minutes=10),
-        "scan2_closes_at" : midpoint + timedelta(minutes=10),
-        "scan3_opens_at"  : end - timedelta(minutes=15),
-        "scan3_closes_at" : end,
-    }
-
-
 def _already_seeded(db: Session) -> bool:
-    if db.query(User).filter(User.email == "director@uti.ie").first():
-        return True
-    return db.query(University).filter(
-        University.name.in_(
-            (
-                "Griffith College Limerick",
-                "University of Technological Ireland",
-            )
-        )
-    ).first() is not None
+    return db.query(User).filter(User.email == "director@uti.ie").first() is not None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MAIN SEEDER
-# ─────────────────────────────────────────────────────────────────────────────
 
 def seed_default_admin(db: Session):
-    """Entry point called from main.py on startup."""
     _ensure_admin(db)
     if _already_seeded(db):
-        print(" Seed data already present — skipping full seed")
+        print("Seed data already present — skipping full seed")
         return
     _seed_all(db)
 
@@ -129,7 +61,7 @@ def seed_default_admin(db: Session):
 def _ensure_admin(db: Session):
     if db.query(User).filter(User.email == "admin@faceattend.ie").first():
         return
-    admin = User(
+    db.add(User(
         id            = _uid(),
         email         = "admin@faceattend.ie",
         full_name     = "System Administrator",
@@ -137,156 +69,72 @@ def _ensure_admin(db: Session):
         role          = UserRole.SYSTEM_ADMIN,
         totp_enabled  = False,
         is_active     = True,
-    )
-    db.add(admin)
+    ))
     db.commit()
     print("Admin seeded → admin@faceattend.ie / Admin@1234")
 
 
 def _seed_all(db: Session):
-    print("Seeding full institutional dataset...")
+    print("Seeding minimal dataset...")
 
-    # ── 1. UNIVERSITY ──────────────────────────────────────────────────────
-    uni = University(
-        id      = _uid(),
-        name    = "Griffith College Limerick",
-        country = "Ireland",
-    )
+    # ── 1. UNIVERSITY ─────────────────────────────────────────────────────────
+    uni = University(id=_uid(), name="Griffith College Limerick", country="Ireland")
     db.add(uni)
     db.flush()
 
-    # ── 2. DEPARTMENTS ─────────────────────────────────────────────────────
-    dept_cs = Department(
-        id            = _uid(),
-        name          = "School of Computing & Digital Technologies",
-        university_id = uni.id,
-    )
-    dept_eng = Department(
-        id            = _uid(),
-        name          = "School of Engineering",
-        university_id = uni.id,
-    )
+    # ── 2. DEPARTMENTS ────────────────────────────────────────────────────────
+    dept_cs = Department(id=_uid(), name="School of Computing & Digital Technologies", university_id=uni.id)
+    dept_eng = Department(id=_uid(), name="School of Engineering", university_id=uni.id)
     db.add_all([dept_cs, dept_eng])
     db.flush()
 
-    # ── 3. STAFF USERS ─────────────────────────────────────────────────────
-    staff_pw = hash_password("Staff@1234")
+    # ── 3. STAFF ──────────────────────────────────────────────────────────────
+    pw = hash_password("Staff@1234")
 
-    director = User(
-        id            = _uid(),
-        email         = "director@uti.ie",
-        full_name     = "Dr. Aoife Brennan",
-        password_hash = staff_pw,
-        role          = UserRole.PROGRAMME_DIRECTOR,
-        department_id = dept_cs.id,
-        totp_enabled  = False,
-        is_active     = True,
-    )
-    lec1 = User(
-        id            = _uid(),
-        email         = "lecturer1@uti.ie",
-        full_name     = "Dr. Ciarán Murphy",
-        password_hash = staff_pw,
-        role          = UserRole.LECTURER,
-        department_id = dept_cs.id,
-        totp_enabled  = False,
-        is_active     = True,
-    )
-    lec2 = User(
-        id            = _uid(),
-        email         = "lecturer2@uti.ie",
-        full_name     = "Dr. Sinéad O'Sullivan",
-        password_hash = staff_pw,
-        role          = UserRole.LECTURER,
-        department_id = dept_cs.id,
-        totp_enabled  = False,
-        is_active     = True,
-    )
-    lec3 = User(
-        id            = _uid(),
-        email         = "lecturer3@uti.ie",
-        full_name     = "Prof. Declan Walsh",
-        password_hash = staff_pw,
-        role          = UserRole.LECTURER,
-        department_id = dept_cs.id,
-        totp_enabled  = False,
-        is_active     = True,
-    )
-    lec4 = User(
-        id            = _uid(),
-        email         = "lecturer4@uti.ie",
-        full_name     = "Dr. Fionnuala Kelly",
-        password_hash = staff_pw,
-        role          = UserRole.LECTURER,
-        department_id = dept_eng.id,
-        totp_enabled  = False,
-        is_active     = True,
-    )
-    db.add_all([director, lec1, lec2, lec3, lec4])
+    director = User(id=_uid(), email="director@uti.ie", full_name="Dr. Aoife Brennan",
+                    password_hash=pw, role=UserRole.PROGRAMME_DIRECTOR,
+                    department_id=dept_cs.id, totp_enabled=False, is_active=True)
+    lec1 = User(id=_uid(), email="lecturer1@uti.ie", full_name="Dr. Ciarán Murphy",
+                password_hash=pw, role=UserRole.LECTURER,
+                department_id=dept_cs.id, totp_enabled=False, is_active=True)
+    lec2 = User(id=_uid(), email="lecturer2@uti.ie", full_name="Dr. Fionnuala Kelly",
+                password_hash=pw, role=UserRole.LECTURER,
+                department_id=dept_eng.id, totp_enabled=False, is_active=True)
+    db.add_all([director, lec1, lec2])
     db.flush()
 
-    # ── 4. PROGRAMMES ──────────────────────────────────────────────────────
-    prog_cs = Programme(
-        id            = _uid(),
-        name          = "BSc Computer Science",
-        department_id = dept_cs.id,
-        director_id   = director.id,
-        is_active     = True,
-    )
-    prog_ai = Programme(
-        id            = _uid(),
-        name          = "MSc Artificial Intelligence",
-        department_id = dept_cs.id,
-        director_id   = director.id,
-        is_active     = True,
-    )
-    prog_ee = Programme(
-        id            = _uid(),
-        name          = "BEng Electronic Engineering",
-        department_id = dept_eng.id,
-        director_id   = None,
-        is_active     = True,
-    )
-    db.add_all([prog_cs, prog_ai, prog_ee])
+    # ── 4. PROGRAMMES ─────────────────────────────────────────────────────────
+    prog_cs = Programme(id=_uid(), name="BSc Computer Science",
+                        department_id=dept_cs.id, director_id=director.id, is_active=True)
+    prog_ee = Programme(id=_uid(), name="BEng Electronic Engineering",
+                        department_id=dept_eng.id, director_id=None, is_active=True)
+    db.add_all([prog_cs, prog_ee])
     db.flush()
 
-    # ── 5. MODULES ─────────────────────────────────────────────────────────
-    YEAR = "2024/2025"
+    # ── 5. MODULES (with year_of_study for auto-enroll) ───────────────────────
+    AY = "2025/2026"
 
-    # BSc CS modules (semester 1)
     mod_alg = Module(id=_uid(), module_code="CS401", module_name="Algorithms & Data Structures",
-                     programme_id=prog_cs.id, lecturer_id=lec1.id, academic_year=YEAR, semester="1")
+                     programme_id=prog_cs.id, lecturer_id=lec1.id,
+                     academic_year=AY, semester="1", year_of_study=1)
     mod_ml  = Module(id=_uid(), module_code="CS402", module_name="Machine Learning Fundamentals",
-                     programme_id=prog_cs.id, lecturer_id=lec2.id, academic_year=YEAR, semester="1")
-    mod_web = Module(id=_uid(), module_code="CS403", module_name="Full Stack Web Development",
-                     programme_id=prog_cs.id, lecturer_id=lec1.id, academic_year=YEAR, semester="1")
-    mod_db  = Module(id=_uid(), module_code="CS404", module_name="Database Systems & Design",
-                     programme_id=prog_cs.id, lecturer_id=lec2.id, academic_year=YEAR, semester="2")
-
-    # MSc AI modules (semester 1)
-    mod_dl  = Module(id=_uid(), module_code="AI501", module_name="Deep Learning & Neural Networks",
-                     programme_id=prog_ai.id, lecturer_id=lec3.id, academic_year=YEAR, semester="1")
-    mod_cv  = Module(id=_uid(), module_code="AI502", module_name="Computer Vision",
-                     programme_id=prog_ai.id, lecturer_id=lec2.id, academic_year=YEAR, semester="1")
-    mod_nlp = Module(id=_uid(), module_code="AI503", module_name="Natural Language Processing",
-                     programme_id=prog_ai.id, lecturer_id=lec3.id, academic_year=YEAR, semester="2")
-
-    # BEng EE modules
+                     programme_id=prog_cs.id, lecturer_id=lec1.id,
+                     academic_year=AY, semester="1", year_of_study=2)
     mod_emb = Module(id=_uid(), module_code="EE401", module_name="Embedded Systems",
-                     programme_id=prog_ee.id, lecturer_id=lec4.id, academic_year=YEAR, semester="1")
+                     programme_id=prog_ee.id, lecturer_id=lec2.id,
+                     academic_year=AY, semester="1", year_of_study=1)
     mod_sig = Module(id=_uid(), module_code="EE402", module_name="Signal Processing",
-                     programme_id=prog_ee.id, lecturer_id=lec4.id, academic_year=YEAR, semester="1")
+                     programme_id=prog_ee.id, lecturer_id=lec2.id,
+                     academic_year=AY, semester="2", year_of_study=2)
 
-    cs_modules  = [mod_alg, mod_ml, mod_web, mod_db]
-    ai_modules  = [mod_dl, mod_cv, mod_nlp]
-    ee_modules  = [mod_emb, mod_sig]
-    all_modules = cs_modules + ai_modules + ee_modules
-
+    cs_modules = [mod_alg, mod_ml]
+    ee_modules = [mod_emb, mod_sig]
+    all_modules = cs_modules + ee_modules
     db.add_all(all_modules)
     db.flush()
 
-    # ── 6. STUDENTS ────────────────────────────────────────────────────────
-    def make_student(num: str, name: str, email: str, prog_id: str, year: int) -> Student:
+    # ── 6. STUDENTS ───────────────────────────────────────────────────────────
+    def make_student(num, name, email, prog_id, year_of_study, admission_year):
         return Student(
             id              = _uid(),
             student_number  = num,
@@ -294,152 +142,115 @@ def _seed_all(db: Session):
             email           = email,
             password_hash   = hash_password(num),
             programme_id    = prog_id,
-            year_of_study   = year,
+            year_of_study   = year_of_study,
+            admission_year  = admission_year,
             face_registered = False,
             is_active       = True,
         )
 
-    # BSc CS students
-    cs_students = [
-        make_student("STU20240001", "Oisín Fitzgerald",  "stu20240001@uti.ie", prog_cs.id, 3),
-        make_student("STU20240002", "Caoimhe Doherty",   "stu20240002@uti.ie", prog_cs.id, 3),
-        make_student("STU20240003", "Rían O'Brien",      "stu20240003@uti.ie", prog_cs.id, 3),
-        make_student("STU20240004", "Saoirse McCarthy",  "stu20240004@uti.ie", prog_cs.id, 3),
-        make_student("STU20240005", "Tadhg Gallagher",   "stu20240005@uti.ie", prog_cs.id, 2),
-        make_student("STU20240006", "Niamh Brennan",     "stu20240006@uti.ie", prog_cs.id, 2),
-        make_student("STU20240007", "Cormac Ryan",       "stu20240007@uti.ie", prog_cs.id, 2),
-        make_student("STU20240008", "Aoibhinn Quinn",    "stu20240008@uti.ie", prog_cs.id, 1),
-        make_student("STU20240009", "Fionn Doyle",       "stu20240009@uti.ie", prog_cs.id, 1),
-        make_student("STU20240010", "Éabha Nolan",       "stu20240010@uti.ie", prog_cs.id, 1),
+    # 2026 intake
+    students_2026_cs = [
+        make_student("STU20260001", "Oisín Fitzgerald",  "stu20260001@uti.ie", prog_cs.id, 1, 2026),
+        make_student("STU20260002", "Caoimhe Doherty",   "stu20260002@uti.ie", prog_cs.id, 1, 2026),
+    ]
+    students_2026_ee = [
+        make_student("STU20260003", "Darragh Connolly",  "stu20260003@uti.ie", prog_ee.id, 1, 2026),
+        make_student("STU20260004", "Mairéad Burke",     "stu20260004@uti.ie", prog_ee.id, 1, 2026),
     ]
 
-    # MSc AI students
-    ai_students = [
-        make_student("STU20240011", "Adaeze Okonkwo",    "stu20240011@uti.ie", prog_ai.id, 1),
-        make_student("STU20240012", "Kwame Asante",      "stu20240012@uti.ie", prog_ai.id, 1),
-        make_student("STU20240013", "Priya Nair",        "stu20240013@uti.ie", prog_ai.id, 1),
-        make_student("STU20240014", "Luca Rossi",        "stu20240014@uti.ie", prog_ai.id, 1),
-        make_student("STU20240015", "Sofia Andersson",   "stu20240015@uti.ie", prog_ai.id, 2),
+    # 2027 intake
+    students_2027_cs = [
+        make_student("STU20270001", "Rían O'Brien",      "stu20270001@uti.ie", prog_cs.id, 1, 2027),
+        make_student("STU20270002", "Saoirse McCarthy",  "stu20270002@uti.ie", prog_cs.id, 1, 2027),
+    ]
+    students_2027_ee = [
+        make_student("STU20270003", "Seán Higgins",      "stu20270003@uti.ie", prog_ee.id, 1, 2027),
+        make_student("STU20270004", "Ciara Walsh",       "stu20270004@uti.ie", prog_ee.id, 1, 2027),
     ]
 
-    # BEng EE students
-    ee_students = [
-        make_student("STU20240016", "Darragh Connolly",  "stu20240016@uti.ie", prog_ee.id, 2),
-        make_student("STU20240017", "Mairéad Burke",     "stu20240017@uti.ie", prog_ee.id, 2),
-        make_student("STU20240018", "Seán Higgins",      "stu20240018@uti.ie", prog_ee.id, 3),
-        make_student("STU20240019", "Ciara Walsh",       "stu20240019@uti.ie", prog_ee.id, 3),
-        make_student("STU20240020", "Pádraig Ó'Neill",   "stu20240020@uti.ie", prog_ee.id, 1),
-    ]
-
-    all_students = cs_students + ai_students + ee_students
+    all_cs_students = students_2026_cs + students_2027_cs
+    all_ee_students = students_2026_ee + students_2027_ee
+    all_students    = all_cs_students + all_ee_students
     db.add_all(all_students)
     db.flush()
 
-    # ── 7. ENROLMENTS ──────────────────────────────────────────────────────
+    # ── 7. ENROLMENTS (Year 1 students → Year 1 modules only) ────────────────
     enrolments = []
-
-    for student in cs_students:
-        for mod in cs_modules:
-            enrolments.append(ModuleEnrollment(
-                id=_uid(), module_id=mod.id, student_id=student.id
-            ))
-
-    for student in ai_students:
-        for mod in ai_modules:
-            enrolments.append(ModuleEnrollment(
-                id=_uid(), module_id=mod.id, student_id=student.id
-            ))
-
-    for student in ee_students:
-        for mod in ee_modules:
-            enrolments.append(ModuleEnrollment(
-                id=_uid(), module_id=mod.id, student_id=student.id
-            ))
+    for s in all_cs_students:
+        mods = [m for m in cs_modules if m.year_of_study == s.year_of_study]
+        for m in mods:
+            enrolments.append(ModuleEnrollment(id=_uid(), module_id=m.id, student_id=s.id))
+    for s in all_ee_students:
+        mods = [m for m in ee_modules if m.year_of_study == s.year_of_study]
+        for m in mods:
+            enrolments.append(ModuleEnrollment(id=_uid(), module_id=m.id, student_id=s.id))
 
     db.add_all(enrolments)
     db.flush()
 
-    # ── 8. LECTURES ────────────────────────────────────────────────────────
-    # 3 past lectures per module so reports and grading have data to show
-    # Lecture times spread across Mon/Tue/Wed/Thu mornings
-
+    # ── 8. LECTURES (2 past lectures per module) ──────────────────────────────
     today = date.today()
 
-    def past_monday(weeks_ago: int) -> date:
-        """Get the Monday from N weeks ago."""
-        d = today - timedelta(days=today.weekday())  # this week's Monday
-        return d - timedelta(weeks=weeks_ago)
+    def past_monday(weeks_ago):
+        monday = today - timedelta(days=today.weekday())
+        return monday - timedelta(weeks=weeks_ago)
 
-    def make_lectures(mod: Module, day_offset: int, start_hour: int, end_hour: int, room: str):
+    def make_lectures(mod, day_offset, start_hour, end_hour, room):
         lectures = []
-        for week in [3, 2, 1]:
-            lecture_date = past_monday(week) + timedelta(days=day_offset)
-            start_dt     = datetime(lecture_date.year, lecture_date.month, lecture_date.day, start_hour, 0, 0)
-            end_dt       = datetime(lecture_date.year, lecture_date.month, lecture_date.day, end_hour,   0, 0)
-            duration     = end_dt - start_dt
-            midpoint     = start_dt + duration / 2
-
+        for week in [2, 1]:
+            d  = past_monday(week) + timedelta(days=day_offset)
+            s  = datetime(d.year, d.month, d.day, start_hour, 0)
+            e  = datetime(d.year, d.month, d.day, end_hour,   0)
+            mp = s + (e - s) / 2
             lectures.append(ScheduledLecture(
                 id              = _uid(),
                 module_id       = mod.id,
-                date            = lecture_date,
-                start_time      = start_dt.time(),
-                end_time        = end_dt.time(),
+                date            = d,
+                start_time      = s.time(),
+                end_time        = e.time(),
                 room            = room,
-                scan1_opens_at  = start_dt,
-                scan1_closes_at = start_dt  + timedelta(minutes=15),
-                scan2_opens_at  = midpoint  - timedelta(minutes=10),
-                scan2_closes_at = midpoint  + timedelta(minutes=10),
-                scan3_opens_at  = end_dt    - timedelta(minutes=15),
-                scan3_closes_at = end_dt,
-                is_recurring    = True,
-                recur_day       = day_offset,
+                scan1_opens_at  = s,
+                scan1_closes_at = s  + timedelta(minutes=15),
+                scan2_opens_at  = mp - timedelta(minutes=10),
+                scan2_closes_at = mp + timedelta(minutes=10),
+                scan3_opens_at  = e  - timedelta(minutes=15),
+                scan3_closes_at = e,
+                is_recurring    = False,
                 is_cancelled    = False,
             ))
         return lectures
 
-    all_lectures = []
-
-    # CS modules — Monday & Tuesday mornings, Block A rooms
-    all_lectures += make_lectures(mod_alg, day_offset=0, start_hour=9,  end_hour=11, room="A101")
-    all_lectures += make_lectures(mod_ml,  day_offset=0, start_hour=12, end_hour=14, room="A102")
-    all_lectures += make_lectures(mod_web, day_offset=1, start_hour=9,  end_hour=11, room="A201")
-    all_lectures += make_lectures(mod_db,  day_offset=1, start_hour=14, end_hour=16, room="A202")
-
-    # AI modules — Wednesday mornings, Block B rooms
-    all_lectures += make_lectures(mod_dl,  day_offset=2, start_hour=9,  end_hour=11, room="B101")
-    all_lectures += make_lectures(mod_cv,  day_offset=2, start_hour=12, end_hour=14, room="B102")
-    all_lectures += make_lectures(mod_nlp, day_offset=2, start_hour=14, end_hour=16, room="B201")
-
-    # EE modules — Thursday mornings, Engineering Block
-    all_lectures += make_lectures(mod_emb, day_offset=3, start_hour=9,  end_hour=11, room="ENG-101")
-    all_lectures += make_lectures(mod_sig, day_offset=3, start_hour=12, end_hour=14, room="ENG-102")
+    all_lectures  = make_lectures(mod_alg, 0, 9,  11, "A101")
+    all_lectures += make_lectures(mod_ml,  0, 12, 14, "A102")
+    all_lectures += make_lectures(mod_emb, 1, 9,  11, "ENG-101")
+    all_lectures += make_lectures(mod_sig, 1, 12, 14, "ENG-102")
 
     db.add_all(all_lectures)
     db.commit()
 
-    # ── SUMMARY ────────────────────────────────────────────────────────────
+    # ── SUMMARY ───────────────────────────────────────────────────────────────
     print("=" * 56)
-    print("SEED COMPLETE")
+    print("SEED COMPLETE — Minimal Dataset")
     print("=" * 56)
-    print(f"  University  : University of Technological Ireland")
-    print(f"  Departments : 2")
-    print(f"  Programmes  : 3  (BSc CS · MSc AI · BEng EE)")
-    print(f"  Modules     : {len(all_modules)}  (CS×4 · AI×3 · EE×2)")
-    print(f"  Lectures    : {len(all_lectures)}  (3 per module, past dates)")
-    print(f"  Students    : {len(all_students)}  (CS×10 · AI×5 · EE×5)")
+    print(f"  University  : Griffith College Limerick")
+    print(f"  Departments : 2  (Computing · Engineering)")
+    print(f"  Programmes  : 2  (BSc CS · BEng EE)")
+    print(f"  Modules     : {len(all_modules)}  (CS401, CS402, EE401, EE402)")
+    print(f"  Lectures    : {len(all_lectures)}  (2 per module, past dates)")
+    print(f"  Students    : {len(all_students)}  (4×2026 · 4×2027)")
     print(f"  Enrolments  : {len(enrolments)}")
     print()
-    print("  STAFF LOGINS (password: Staff@1234)")
-    print("  ─────────────────────────────────────")
-    print("  director@uti.ie   → Programme Director")
-    print("  lecturer1@uti.ie  → Dr. Ciarán Murphy  (CS401, CS403)")
-    print("  lecturer2@uti.ie  → Dr. Sinéad O'Sullivan (CS402, CS404, AI502)")
-    print("  lecturer3@uti.ie  → Prof. Declan Walsh  (AI501, AI503)")
-    print("  lecturer4@uti.ie  → Dr. Fionnuala Kelly (EE401, EE402)")
+    print("  STAFF (password: Staff@1234)")
+    print("  ─────────────────────────────────────────")
+    print("  director@uti.ie   → Dr. Aoife Brennan  (Programme Director)")
+    print("  lecturer1@uti.ie  → Dr. Ciarán Murphy  (CS modules)")
+    print("  lecturer2@uti.ie  → Dr. Fionnuala Kelly (EE modules)")
     print()
-    print("  STUDENT LOGINS (password = student number)")
-    print("  ─────────────────────────────────────────────")
-    print("  stu20240001@uti.ie … stu20240020@uti.ie")
-    print("  e.g. email: stu20240001@uti.ie  pw: STU20240001")
+    print("  STUDENTS (password = student number)")
+    print("  ─────────────────────────────────────────")
+    print("  2026 CS: stu20260001@uti.ie  stu20260002@uti.ie")
+    print("  2026 EE: stu20260003@uti.ie  stu20260004@uti.ie")
+    print("  2027 CS: stu20270001@uti.ie  stu20270002@uti.ie")
+    print("  2027 EE: stu20270003@uti.ie  stu20270004@uti.ie")
+    print("  e.g. email: stu20260001@uti.ie  pw: STU20260001")
     print("=" * 56)

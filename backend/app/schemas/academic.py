@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from datetime import datetime as _dt
 from typing import Optional, TypeVar, Generic
 from app.models.user import UserRole
 
@@ -71,12 +72,14 @@ class ModuleCreate(BaseModel):
     module_name  : str
     programme_id : str
     lecturer_id  : str
+    year_of_study: int = 1
     academic_year: str = "2024/2025"
     semester     : str = "1"
 
 class ModuleUpdate(BaseModel):
     module_name  : Optional[str] = None
     lecturer_id  : Optional[str] = None
+    year_of_study: Optional[int] = None
     academic_year: Optional[str] = None
     semester     : Optional[str] = None
     is_active    : Optional[bool]= None
@@ -87,6 +90,7 @@ class ModuleResponse(BaseModel):
     module_name  : str
     programme_id : str
     lecturer_id  : str
+    year_of_study: int
     academic_year: str
     semester     : str
     is_active    : bool
@@ -134,6 +138,14 @@ class StudentCreate(BaseModel):
     password      : str
     programme_id  : Optional[str] = None
     year_of_study : int = 1
+    admission_year: int = Field(default_factory=lambda: _dt.now().year)
+
+class StudentUpdate(BaseModel):
+    full_name     : Optional[str] = None
+    programme_id  : Optional[str] = None
+    year_of_study : Optional[int] = None
+    admission_year: Optional[int] = None
+    is_active     : Optional[bool]= None
 
 class StudentResponse(BaseModel):
     id            : str
@@ -142,6 +154,7 @@ class StudentResponse(BaseModel):
     email         : str
     programme_id  : Optional[str]
     year_of_study : int
+    admission_year: int
     is_active     : bool
     face_registered: bool
     created_at    : datetime
